@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LXC Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>[v-cloak] { display: none; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col">
+
+<div id="app" class="max-w-6xl w-full mx-auto p-6" v-cloak>
+    
+    <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-2 rounded">
+                <i class="fa-solid fa-server"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900">LXC Simple Manager</h1>
+                <p class="text-xs text-slate-500">Stateless Environment Controller</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button @click="showCreateModal = true" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition shadow-sm flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> New Container
+            </button>
+            <button @click="fetchContainers" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-md text-sm transition" title="Refresh">
+                <i class="fa-solid fa-rotate" :class="{'animate-spin': loading}"></i>
+            </button>
+        </div>
+    </header>
+
+    <div v-if="message" :class="`p-4 mb-6 rounded-md text-sm flex justify-between items-center ${messageType === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`">
+        <span>{{ message }}</span>
+        <button @click="message = ''"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <div v-if="loading && containers.length === 0" class="col-span-full text-center py-20 text-slate-400">
+            <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i>
+            <p>Scanning LXC system...</p>
+        </div>
+
+        <div v-for="c in containers" :key="c.name" class="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg">{{ c.name }}</h3>
+                    <div class="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold"
+                        :class="{
+                            'bg-green-100 text-green-700': c.state === 'RUNNING',
+                            'bg-red-100 text-red-700': c.state === 'STOPPED',
+                            'bg-amber-100 text-amber-700': c.state === 'FROZEN'
+                        }">
+                        <span class="w-1.5 h-1.5 rounded-full" 
+                              :class="{
+                                'bg-green-500': c.state === 'RUNNING',
+                                'bg-red-500': c.state === 'STOPPED',
+                                'bg-amber-500': c.state === 'FROZEN'
+                              }"></span>
+                        {{ c.state }}
+                    </div>
+                </div>
+                <div class="text-slate-400 text-sm">
+                   <i class="fa-brands fa-linux"></i>
+                </div>
+            </div>
+
+            <div class="p-4 flex-grow text-sm space-y-3">
+                <div class="flex items-start gap-2">
+                    <i class="fa-solid fa-network-wired text-slate-400 mt-1"></i>
+                    <div class="font-mono text-slate-600 break-all">
+                        <div v-if="c.ipv4.length">{{ c.ipv4[0] }}</div>
+                        <div v-else class="text-slate-400 italic">No IP Address</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-100 flex gap-2">
+                <button v-if="c.state === 'STOPPED'" @click="controlContainer(c.name, 'start')" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-1.5 rounded text-xs font-medium transition">
+                    Start
+                </button>
+                <button v-if="c.state === 'RUNNING'" @click="controlContainer(c.name, 'stop')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1.5 rounded text-xs font-medium transition">
+                    Stop
+                </button>
+                <button @click="deleteContainer(c.name)" class="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded text-xs font-medium transition border border-transparent hover:border-red-200">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showCreateModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 class="text-xl font-bold mb-4">Create Environment</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                    <input v-model="newContainer.name" type="text" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="e.g., dev-python-01">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Distro</label>
+                        <select v-model="newContainer.distro" class="w-full border border-slate-300 rounded px-3 py-2 bg-white">
+                            <option value="alpine">Alpine</option>
+                            <option value="debian">Debian</option>
+                            <option value="ubuntu">Ubuntu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Release</label>
+                        <input v-model="newContainer.release" type="text" class="w-full border border-slate-300 rounded px-3 py-2" placeholder="e.g., bookworm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <button @click="showCreateModal = false" class="text-slate-500 hover:text-slate-700 font-medium text-sm">Cancel</button>
+                <button @click="createContainer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium">Create</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const { createApp } = Vue
+    const API_URL = `http://${window.location.hostname}:8001/api/containers`
+
+    createApp({
+        data() {
+            return {
+                containers: [],
+                loading: false,
+                message: '',
+                messageType: 'info',
+                showCreateModal: false,
+                newContainer: { name: '', distro: 'debian', release: 'bookworm', arch: 'amd64' }
+            }
+        },
+        methods: {
+            async fetchContainers() {
+                this.loading = true
+                try {
+                    const res = await fetch(API_URL)
+                    this.containers = await res.json()
+                } catch (e) {
+                    this.showMsg("Connection failed. Is the backend running?", "error")
+                } finally {
+                    this.loading = false
+                }
+            },
+            async controlContainer(name, action) {
+                // Optimistic UI update
+                const idx = this.containers.findIndex(c => c.name === name)
+                const originalState = this.containers[idx].state
+                this.containers[idx].state = action === 'start' ? 'RUNNING' : 'STOPPED' // fake it til you make it
+
+                try {
+                    const res = await fetch(`${API_URL}/${name}/${action}`, { method: 'POST' })
+                    if (!res.ok) throw new Error()
+                    // Refresh real state after a delay (LXC needs a moment)
+                    setTimeout(() => this.fetchContainers(), 1000)
+                } catch (e) {
+                    this.containers[idx].state = originalState // revert
+                    this.showMsg(`Failed to ${action} container`, "error")
+                }
+            },
+            async deleteContainer(name) {
+                // 1. First Warning
+                if(!confirm(`⚠ DANGER ZONE ⚠\n\nAre you sure you want to destroy the environment '${name}'?\nThis action cannot be undone.`)) {
+                    return;
+                }
+
+                // 2. The "Nuclear Code" Check
+                const confirmation = prompt(`FINAL SAFETY CHECK:\n\nTo permanently delete this container and all its files, please type:\n\n${name}`);
+                
+                if (confirmation !== name) {
+                    alert("❌ Deletion Cancelled: The name did not match.");
+                    return;
+                }
+
+                // 3. Actual Deletion
+                try {
+                    this.showMsg(`Destroying ${name}...`, "info")
+                    await fetch(`${this.apiUrl}/${name}`, { method: 'DELETE' })
+                    this.containers = this.containers.filter(c => c.name !== name)
+                    this.showMsg(`Container ${name} destroyed.`, "success")
+                } catch(e) {
+                    this.showMsg("Delete failed", "error")
+                }
+            },
+            async createContainer() {
+                this.showCreateModal = false
+                this.showMsg(`Creating ${this.newContainer.name}... check back in a few minutes.`, "success")
+                
+                try {
+                    await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(this.newContainer)
+                    })
+                } catch (e) {
+                    this.showMsg("Creation failed to start", "error")
+                }
+            },
+            showMsg(text, type) {
+                this.message = text
+                this.messageType = type
+                setTimeout(() => this.message = '', 5000)
+            }
+        },
+        mounted() {
+            this.fetchContainers()
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>
