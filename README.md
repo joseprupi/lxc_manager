@@ -3,27 +3,25 @@
 A lightweight, stateful web interface for managing Linux Containers (LXC) on Debian/Ubuntu servers. 
 It provides a safe, modern UI to manage container lifecycles, network rules, and backups without needing complex orchestration tools like Kubernetes or Proxmox.
 
-![Dashboard Screenshot](./screenshots/dashboard_placeholder.png)
+![Dashboard Screenshot](./screenshots/main.png)
 
 ## 🚀 Features
 
 ### 📦 Container Management
 * **Lifecycle Control:** Start, Stop, Freeze, and Delete containers.
 * **One-Click Creation:** Download and deploy generic Linux distro images (Debian, Ubuntu, Alpine).
-* **Safety First:** "Nuclear Code" confirmation required for deletion.
 
 ### 🛡️ Network Orchestrator
 * **Port Forwarding (DNAT):** Visual manager for `iptables`. 
-* **Safe Architecture:** Uses a custom sidecar chain (`LXC_MANAGER`) to avoid messing up system-level rules (SSH, Docker).
+* **Safe Architecture:** Uses a custom sidecar chain (`LXC_MANAGER`) to avoid messing up system-level rules.
 * **Static IPs:** Manage DHCP leases for containers directly from the UI.
-* **Multi-Interface Support:** Bind rules to specific interfaces or listen on `all`.
 
 ### 💾 Backup & Persistence
 * **Container Snapshots:** One-click backup of entire containers to a secondary disk (HDD/SSD).
 * **Stateful Config:** All settings and rules are stored in a local SQLite database (`lxc_manager.db`).
 * **Config Safety:** Automatically backs up `/etc/iptables.up.rules` and DHCP configs before applying changes.
 
-![Settings Screenshot](./screenshots/settings_placeholder.png)
+![Settings Screenshot](./screenshots/settings.png)
 
 ## 🛠️ Architecture
 
