@@ -46,3 +46,23 @@ async def create_container(req: CreateContainerRequest, background_tasks: Backgr
     background_tasks.add_task(lxc.create_container, req.name, req.distro, req.release, req.arch)
     
     return {"status": "creation_initiated", "message": f"Creating {req.name} ({req.distro}/{req.release}). This may take a while."}
+
+@router.post("/{name}/backup")
+def backup_container_endpoint(name: str, background_tasks: BackgroundTasks):
+    # 1. Get path from DB
+    path = get_setting("backup_path", "/tmp/lxc_backups")
+    
+    # 2. Define the background task wrapper so we can log success/fail
+    def _run_backup_task():
+        try:
+            log_action("BACKUP_START", name, "PENDING", f"Target: {path}")
+            filename = lxc.backup_container(name, path)
+            log_action("BACKUP_COMPLETE", name, "SUCCESS", f"File: {filename}")
+        except Exception as e:
+            log_action("BACKUP_ERROR", name, "ERROR", str(e))
+            print(f"Backup failed: {e}")
+
+    # 3. Queue it
+    background_tasks.add_task(_run_backup_task)
+    
+    return {"status": "started", "message": f"Backup started. Saving to {path}"}

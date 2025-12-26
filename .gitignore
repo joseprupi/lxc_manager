@@ -19,6 +19,9 @@ dist/
 backend.log
 frontend.log
 
+# DB
+lxc_manager.db
+
 # IDE settings (VS Code, JetBrains)
 .vscode/
 .idea/

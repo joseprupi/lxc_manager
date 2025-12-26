@@ -71,13 +71,47 @@ class PythonLXCAdapter:
         if not c.create("download", 0, {"dist": distro, "release": release, "arch": arch}):
             raise RuntimeError(f"Failed to create container {name}")
 
-    def delete_container(self, name: str):
+    # def delete_container(self, name: str):
+    #     import lxc
+    #     c = lxc.Container(name)
+    #     if c.running:
+    #         c.stop()
+    #     if not c.destroy():
+    #         raise RuntimeError(f"Failed to destroy container {name}")
+
+    # ... inside PythonLXCAdapter ...
+
+    def backup_container(self, name: str, backup_dir: str) -> str:
         import lxc
+        
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir, exist_ok=True)
+
         c = lxc.Container(name)
-        if c.running:
+        if not c.defined: raise ValueError("Container not found")
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M")
+        filename = f"{name}_{timestamp}.tar.gz"
+        filepath = os.path.join(backup_dir, filename)
+
+        was_running = c.running
+        if was_running:
+            print(f"DEBUG: Stopping {name} for backup...")
             c.stop()
-        if not c.destroy():
-            raise RuntimeError(f"Failed to destroy container {name}")
+            if not c.wait(lxc.STOPPED, 30):
+                raise RuntimeError("Could not stop container")
+
+        try:
+            print(f"DEBUG: Compressing to {filepath}...")
+            subprocess.run(
+                ["tar", "-czf", filepath, "-C", "/var/lib/lxc", name], 
+                check=True
+            )
+        finally:
+            if was_running:
+                c.start()
+
+        return filename
 
 
 # --- 2. THE SHELL FALLBACK IMPLEMENTATION (Backup) ---
