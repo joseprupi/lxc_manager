@@ -1,0 +1,15 @@
+[Unit]
+Description=LXC Simple Manager
+After=network.target lxc.service
+Wants=lxc.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/lxc_manager
+ExecStart=/opt/lxc_manager/venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8001 --workers 1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
