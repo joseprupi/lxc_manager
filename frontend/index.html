@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,363 +9,445 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        [v-cloak] { display: none; }
-        .container-row { transition: background-color 0.15s ease; }
-        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
-        .tab-inactive { color: #64748b; }
+        [v-cloak] {
+            display: none;
+        }
+
+        .container-row {
+            transition: background-color 0.15s ease;
+        }
+
+        .tab-active {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        .tab-inactive {
+            color: #64748b;
+        }
     </style>
 </head>
+
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-<div id="app" class="max-w-7xl w-full mx-auto px-4 py-8" v-cloak>
-    
-    <div class="flex justify-between items-end mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <i class="fa-solid fa-layer-group text-blue-600"></i> LXC Manager
-            </h1>
-            <p class="text-slate-500 text-sm mt-1">Stateful Environment Controller</p>
-        </div>
-        
-        <div class="flex items-center gap-2">
-            <button @click="openSettings" class="bg-white border border-slate-300 text-slate-600 hover:text-blue-600 hover:border-blue-400 px-3 py-2 rounded-lg shadow-sm transition text-sm flex items-center gap-2">
-                <i class="fa-solid fa-sliders"></i> <span class="hidden md:inline">Settings & Network</span>
-            </button>
-            <button @click="fetchData" class="bg-white border border-slate-300 text-slate-600 hover:text-blue-600 px-3 py-2 rounded-lg shadow-sm transition">
-                <i class="fa-solid fa-rotate" :class="{'animate-spin': loading}"></i>
-            </button>
-            <button @click="showCreateModal = true" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-sm transition text-sm font-medium flex items-center gap-2 ml-2">
-                <i class="fa-solid fa-plus"></i> New Container
-            </button>
-        </div>
-    </div>
+    <div id="app" class="max-w-7xl w-full mx-auto px-4 py-8" v-cloak>
 
-    <div v-if="message" :class="`mb-6 p-4 rounded-lg border flex items-start gap-3 shadow-sm ${messageType === 'error' ? 'bg-red-50 border-red-100 text-red-700' : 'bg-green-50 border-green-100 text-green-700'}`">
-        <i :class="messageType === 'error' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check'"></i>
-        <div class="flex-1 text-sm font-medium">{{ message }}</div>
-        <button @click="message = ''"><i class="fa-solid fa-xmark"></i></button>
-    </div>
+        <div class="flex justify-between items-end mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-blue-600"></i> LXC Manager
+                </h1>
+                <p class="text-slate-500 text-sm mt-1">Stateful Environment Controller</p>
+            </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
-            <div class="col-span-3">Container</div>
-            <div class="col-span-2">Status</div>
-            <div class="col-span-3">Internal IP</div>
-            <div class="col-span-2">Public Access</div> <div class="col-span-2 text-right">Actions</div>
+            <div class="flex items-center gap-2">
+                <button @click="openSettings"
+                    class="bg-white border border-slate-300 text-slate-600 hover:text-blue-600 hover:border-blue-400 px-3 py-2 rounded-lg shadow-sm transition text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i> <span class="hidden md:inline">Settings & Network</span>
+                </button>
+                <button @click="fetchData"
+                    class="bg-white border border-slate-300 text-slate-600 hover:text-blue-600 px-3 py-2 rounded-lg shadow-sm transition">
+                    <i class="fa-solid fa-rotate" :class="{'animate-spin': loading}"></i>
+                </button>
+                <button @click="showCreateModal = true"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-sm transition text-sm font-medium flex items-center gap-2 ml-2">
+                    <i class="fa-solid fa-plus"></i> New Container
+                </button>
+            </div>
         </div>
 
-        <div v-if="containers.length === 0" class="py-12 text-center text-slate-400">No containers found.</div>
+        <div v-if="message"
+            :class="`mb-6 p-4 rounded-lg border flex items-start gap-3 shadow-sm ${messageType === 'error' ? 'bg-red-50 border-red-100 text-red-700' : 'bg-green-50 border-green-100 text-green-700'}`">
+            <i :class="messageType === 'error' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check'"></i>
+            <div class="flex-1 text-sm font-medium">{{ message }}</div>
+            <button @click="message = ''"><i class="fa-solid fa-xmark"></i></button>
+        </div>
 
-        <div v-else class="divide-y divide-slate-100">
-            <div v-for="c in containers" :key="c.name" class="container-row grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-slate-50">
-                <div class="col-span-3 flex items-center gap-3">
-                    <div class="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500"><i class="fa-brands fa-linux"></i></div>
-                    <div class="font-bold text-slate-700 text-sm">{{ c.name }}</div>
-                </div>
-                <div class="col-span-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
-                        :class="c.state === 'RUNNING' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'">
-                        <span class="w-1.5 h-1.5 rounded-full" :class="c.state === 'RUNNING' ? 'bg-emerald-500' : 'bg-slate-400'"></span>
-                        {{ c.state }}
-                    </span>
-                </div>
-                <div class="col-span-3">
-                    <div v-if="c.ipv4.length" class="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded inline-block">{{ c.ipv4[0] }}</div>
-                </div>
-                <div class="col-span-2">
-                    <div v-if="getPublicPorts(c).length > 0" class="flex flex-col gap-1">
-                        <span v-for="rule in getPublicPorts(c)" class="font-mono text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block w-max">
-                            <i class="fa-solid fa-globe text-[10px] mr-1"></i>:{{ rule.external_port }} &rarr; {{ rule.internal_port }}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div
+                class="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                <div class="col-span-3">Container</div>
+                <div class="col-span-2">Status</div>
+                <div class="col-span-3">Internal IP</div>
+                <div class="col-span-2">Public Access</div>
+                <div class="col-span-2 text-right">Actions</div>
+            </div>
+
+            <div v-if="containers.length === 0" class="py-12 text-center text-slate-400">No containers found.</div>
+
+            <div v-else class="divide-y divide-slate-100">
+                <div v-for="c in containers" :key="c.name"
+                    class="container-row grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-slate-50">
+                    <div class="col-span-3 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500"><i
+                                class="fa-brands fa-linux"></i></div>
+                        <div class="font-bold text-slate-700 text-sm">{{ c.name }}</div>
+                    </div>
+                    <div class="col-span-2">
+                        <span
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
+                            :class="c.state === 'RUNNING' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'">
+                            <span class="w-1.5 h-1.5 rounded-full"
+                                :class="c.state === 'RUNNING' ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+                            {{ c.state }}
                         </span>
                     </div>
-                    <span v-else class="text-xs text-slate-300">-</span>
-                </div>
-                <div class="col-span-2 flex justify-end gap-2">
-                    <button v-if="c.state === 'STOPPED'" @click="controlContainer(c.name, 'start')" class="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200" title="Start"><i class="fa-solid fa-play text-xs"></i></button>
-                    <button v-if="c.state === 'RUNNING'" @click="controlContainer(c.name, 'stop')" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200" title="Stop"><i class="fa-solid fa-stop text-xs"></i></button>
-                    <button @click="backupContainer(c.name)" class="w-8 h-8 rounded-lg flex items-center justify-center text-cyan-600 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200" title="Backup"><i class="fa-solid fa-floppy-disk text-xs"></i></button>
-                    <button @click="deleteContainer(c.name)" class="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 border border-red-200" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                    <div class="col-span-3">
+                        <div v-if="c.ipv4.length"
+                            class="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded inline-block">{{
+                            c.ipv4[0] }}</div>
+                    </div>
+                    <div class="col-span-2">
+                        <div v-if="getPublicPorts(c).length > 0" class="flex flex-col gap-1">
+                            <span v-for="rule in getPublicPorts(c)"
+                                class="font-mono text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block w-max">
+                                <i class="fa-solid fa-globe text-[10px] mr-1"></i>:{{ rule.external_port }} &rarr; {{
+                                rule.internal_port }}
+                            </span>
+                        </div>
+                        <span v-else class="text-xs text-slate-300">-</span>
+                    </div>
+                    <div class="col-span-2 flex justify-end gap-2">
+                        <button v-if="c.state === 'STOPPED'" @click="controlContainer(c.name, 'start')"
+                            class="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
+                            title="Start"><i class="fa-solid fa-play text-xs"></i></button>
+                        <button v-if="c.state === 'RUNNING'" @click="controlContainer(c.name, 'stop')"
+                            class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200"
+                            title="Stop"><i class="fa-solid fa-stop text-xs"></i></button>
+                        <button @click="backupContainer(c.name)"
+                            class="w-8 h-8 rounded-lg flex items-center justify-center text-cyan-600 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200"
+                            title="Backup"><i class="fa-solid fa-floppy-disk text-xs"></i></button>
+                        <button @click="deleteContainer(c.name)"
+                            class="w-8 h-8 rounded-lg flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 border border-red-200"
+                            title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div v-if="showSettingsModal" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 backdrop-blur-sm z-50">
-        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col h-[600px] border border-slate-200 overflow-hidden">
-            
-            <div class="flex border-b border-slate-200">
-                <button @click="activeTab = 'general'" :class="`flex-1 py-4 text-sm font-medium ${activeTab === 'general' ? 'tab-active' : 'tab-inactive hover:bg-slate-50'}`">
-                    General & Backups
-                </button>
-                <button @click="activeTab = 'network'" :class="`flex-1 py-4 text-sm font-medium ${activeTab === 'network' ? 'tab-active' : 'tab-inactive hover:bg-slate-50'}`">
-                    Network Configuration
-                </button>
-            </div>
+        <div v-if="showSettingsModal"
+            class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 backdrop-blur-sm z-50">
+            <div
+                class="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col h-[600px] border border-slate-200 overflow-hidden">
 
-            <div class="flex-1 overflow-y-auto p-6 bg-slate-50">
-                
-                <div v-if="activeTab === 'general'" class="space-y-6">
-                    <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-                        <h3 class="font-bold text-slate-800 mb-4">Storage</h3>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Backup Destination Path</label>
-                        <div class="flex gap-2">
-                            <input v-model="settings.backup_path" type="text" class="flex-1 border rounded px-3 py-2 text-sm" placeholder="/mnt/hdd/backups">
-                            <button @click="saveSettings" class="bg-slate-900 text-white px-4 py-2 rounded text-sm font-medium">Save</button>
+                <div class="flex border-b border-slate-200">
+                    <button @click="activeTab = 'general'"
+                        :class="`flex-1 py-4 text-sm font-medium ${activeTab === 'general' ? 'tab-active' : 'tab-inactive hover:bg-slate-50'}`">
+                        General & Backups
+                    </button>
+                    <button @click="activeTab = 'network'"
+                        :class="`flex-1 py-4 text-sm font-medium ${activeTab === 'network' ? 'tab-active' : 'tab-inactive hover:bg-slate-50'}`">
+                        Network Configuration
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 bg-slate-50">
+
+                    <div v-if="activeTab === 'general'" class="space-y-6">
+                        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                            <h3 class="font-bold text-slate-800 mb-4">Storage</h3>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Backup Destination
+                                Path</label>
+                            <div class="flex gap-2">
+                                <input v-model="settings.backup_path" type="text"
+                                    class="flex-1 border rounded px-3 py-2 text-sm" placeholder="/mnt/hdd/backups">
+                                <button @click="saveSettings"
+                                    class="bg-slate-900 text-white px-4 py-2 rounded text-sm font-medium">Save</button>
+                            </div>
                         </div>
+                    </div>
+
+                    <div v-if="activeTab === 'network'" class="space-y-6">
+
+                        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                            <h3 class="font-bold text-slate-800 mb-2">Static IPs (DHCP)</h3>
+                            <p class="text-xs text-slate-500 mb-4">Assign fixed IPs to container names in
+                                <code>/etc/lxc/dhcp.conf</code>.
+                            </p>
+
+                            <div
+                                class="grid grid-cols-3 gap-2 mb-2 bg-slate-100 p-2 rounded text-xs font-semibold text-slate-500">
+                                <div>Container Name</div>
+                                <div>IP Address</div>
+                                <div class="text-right">Action</div>
+                            </div>
+                            <div v-for="(ip, name) in dhcpLeases" :key="name"
+                                class="grid grid-cols-3 gap-2 mb-2 items-center">
+                                <input type="text" disabled :value="name"
+                                    class="bg-slate-50 border rounded px-2 py-1 text-sm text-slate-500">
+                                <input type="text" v-model="dhcpLeases[name]" class="border rounded px-2 py-1 text-sm">
+                                <div class="text-right">
+                                    <button @click="saveDhcp(name, dhcpLeases[name])"
+                                        class="text-blue-600 hover:text-blue-800 text-xs font-medium">Update</button>
+                                </div>
+                            </div>
+                            <div class="border-t pt-3 mt-3">
+                                <div class="grid grid-cols-3 gap-2">
+                                    <input v-model="newLease.name" placeholder="Name (e.g. web01)"
+                                        class="border rounded px-2 py-1 text-sm">
+                                    <input v-model="newLease.ip" placeholder="10.0.3.X"
+                                        class="border rounded px-2 py-1 text-sm">
+                                    <button @click="saveDhcp(newLease.name, newLease.ip)"
+                                        class="bg-blue-600 text-white rounded text-xs px-2">Add</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800">Port Forwarding (IPTables)</h3>
+                                    <p class="text-xs text-slate-500">Manage <code>iptables.up.rules</code> (DNAT).</p>
+                                </div>
+                                <button @click="applyNetwork"
+                                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm">
+                                    <i class="fa-solid fa-check"></i> Apply to System
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="bg-slate-100 text-xs uppercase text-slate-500">
+                                        <tr>
+                                            <th class="p-2">Interface</th>
+                                            <th class="p-2">Ext Port</th>
+                                            <th class="p-2">Int IP</th>
+                                            <th class="p-2">Int Port</th>
+                                            <th class="p-2 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="rule in rules" :key="rule.external_port">
+                                            <td class="p-2 font-mono text-xs">{{ rule.interface }}</td>
+                                            <td class="p-2 font-bold text-blue-600">{{ rule.external_port }}</td>
+                                            <td class="p-2 font-mono text-xs">{{ rule.internal_ip }}</td>
+                                            <td class="p-2 text-xs">{{ rule.internal_port }}</td>
+                                            <td class="p-2 text-right">
+                                                <button @click="deleteRule(rule.external_port)"
+                                                    class="text-red-500 hover:text-red-700"><i
+                                                        class="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div
+                                class="mt-4 p-3 bg-slate-50 rounded border border-slate-200 grid grid-cols-5 gap-2 items-end">
+                                <div>
+                                    <label class="text-[10px] uppercase font-bold text-slate-500">Interface</label>
+                                    <input v-model="newRule.interface" class="w-full border rounded px-2 py-1 text-sm"
+                                        placeholder="enp6s0f1">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] uppercase font-bold text-slate-500">Ext Port</label>
+                                    <input v-model.number="newRule.external_port"
+                                        class="w-full border rounded px-2 py-1 text-sm" placeholder="8080">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] uppercase font-bold text-slate-500">Int IP</label>
+                                    <input v-model="newRule.internal_ip" class="w-full border rounded px-2 py-1 text-sm"
+                                        placeholder="10.0.3.15">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] uppercase font-bold text-slate-500">Int Port</label>
+                                    <input v-model.number="newRule.internal_port"
+                                        class="w-full border rounded px-2 py-1 text-sm" placeholder="80">
+                                </div>
+                                <button @click="addRule"
+                                    class="bg-slate-800 text-white rounded px-2 py-1.5 text-sm h-[34px]">Add</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
-                <div v-if="activeTab === 'network'" class="space-y-6">
-                    
-                    <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-                        <h3 class="font-bold text-slate-800 mb-2">Static IPs (DHCP)</h3>
-                        <p class="text-xs text-slate-500 mb-4">Assign fixed IPs to container names in <code>/etc/lxc/dhcp.conf</code>.</p>
-                        
-                        <div class="grid grid-cols-3 gap-2 mb-2 bg-slate-100 p-2 rounded text-xs font-semibold text-slate-500">
-                            <div>Container Name</div>
-                            <div>IP Address</div>
-                            <div class="text-right">Action</div>
-                        </div>
-                        <div v-for="(ip, name) in dhcpLeases" :key="name" class="grid grid-cols-3 gap-2 mb-2 items-center">
-                            <input type="text" disabled :value="name" class="bg-slate-50 border rounded px-2 py-1 text-sm text-slate-500">
-                            <input type="text" v-model="dhcpLeases[name]" class="border rounded px-2 py-1 text-sm">
-                            <div class="text-right">
-                                <button @click="saveDhcp(name, dhcpLeases[name])" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Update</button>
-                            </div>
-                        </div>
-                        <div class="border-t pt-3 mt-3">
-                            <div class="grid grid-cols-3 gap-2">
-                                <input v-model="newLease.name" placeholder="Name (e.g. web01)" class="border rounded px-2 py-1 text-sm">
-                                <input v-model="newLease.ip" placeholder="10.0.3.X" class="border rounded px-2 py-1 text-sm">
-                                <button @click="saveDhcp(newLease.name, newLease.ip)" class="bg-blue-600 text-white rounded text-xs px-2">Add</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <h3 class="font-bold text-slate-800">Port Forwarding (IPTables)</h3>
-                                <p class="text-xs text-slate-500">Manage <code>iptables.up.rules</code> (DNAT).</p>
-                            </div>
-                            <button @click="applyNetwork" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm">
-                                <i class="fa-solid fa-check"></i> Apply to System
-                            </button>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm">
-                                <thead class="bg-slate-100 text-xs uppercase text-slate-500">
-                                    <tr>
-                                        <th class="p-2">Interface</th>
-                                        <th class="p-2">Ext Port</th>
-                                        <th class="p-2">Int IP</th>
-                                        <th class="p-2">Int Port</th>
-                                        <th class="p-2 text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="rule in rules" :key="rule.external_port">
-                                        <td class="p-2 font-mono text-xs">{{ rule.interface }}</td>
-                                        <td class="p-2 font-bold text-blue-600">{{ rule.external_port }}</td>
-                                        <td class="p-2 font-mono text-xs">{{ rule.internal_ip }}</td>
-                                        <td class="p-2 text-xs">{{ rule.internal_port }}</td>
-                                        <td class="p-2 text-right">
-                                            <button @click="deleteRule(rule.external_port)" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="mt-4 p-3 bg-slate-50 rounded border border-slate-200 grid grid-cols-5 gap-2 items-end">
-                            <div>
-                                <label class="text-[10px] uppercase font-bold text-slate-500">Interface</label>
-                                <input v-model="newRule.interface" class="w-full border rounded px-2 py-1 text-sm" placeholder="enp6s0f1">
-                            </div>
-                            <div>
-                                <label class="text-[10px] uppercase font-bold text-slate-500">Ext Port</label>
-                                <input v-model.number="newRule.external_port" class="w-full border rounded px-2 py-1 text-sm" placeholder="8080">
-                            </div>
-                            <div>
-                                <label class="text-[10px] uppercase font-bold text-slate-500">Int IP</label>
-                                <input v-model="newRule.internal_ip" class="w-full border rounded px-2 py-1 text-sm" placeholder="10.0.3.15">
-                            </div>
-                            <div>
-                                <label class="text-[10px] uppercase font-bold text-slate-500">Int Port</label>
-                                <input v-model.number="newRule.internal_port" class="w-full border rounded px-2 py-1 text-sm" placeholder="80">
-                            </div>
-                            <button @click="addRule" class="bg-slate-800 text-white rounded px-2 py-1.5 text-sm h-[34px]">Add</button>
-                        </div>
-                    </div>
-
+                <div class="bg-white p-4 border-t border-slate-200 text-right">
+                    <button @click="showSettingsModal = false"
+                        class="text-slate-600 hover:text-slate-900 font-medium text-sm">Close</button>
                 </div>
-            </div>
-
-            <div class="bg-white p-4 border-t border-slate-200 text-right">
-                <button @click="showSettingsModal = false" class="text-slate-600 hover:text-slate-900 font-medium text-sm">Close</button>
             </div>
         </div>
+
     </div>
-    
-    </div>
 
-<script>
-    const { createApp } = Vue
-    const API_BASE = `http://${window.location.hostname}:8001/api`
+    <script>
+        const { createApp } = Vue
+        const API_BASE = `http://${window.location.hostname}:8001/api`
 
-    createApp({
-        data() {
-            return {
-                activeTab: 'general',
-                containers: [],
-                loading: false,
-                message: '',
-                messageType: 'info',
-                showCreateModal: false,
-                showSettingsModal: false,
-                
-                // Data for Network Tab
-                dhcpLeases: {},
-                newLease: {name: '', ip: ''},
-                rules: [],
-                newRule: {interface: 'enp6s0f1', protocol: 'tcp', external_port: '', internal_ip: '', internal_port: ''},
-                
-                settings: { backup_path: '' },
-                newContainer: { name: '', distro: 'debian', release: 'bookworm', arch: 'amd64' }
+        createApp({
+            data() {
+                return {
+                    activeTab: 'general',
+                    containers: [],
+                    loading: false,
+                    message: '',
+                    messageType: 'info',
+                    showCreateModal: false,
+                    showSettingsModal: false,
+
+                    // Data for Network Tab
+                    dhcpLeases: {},
+                    newLease: { name: '', ip: '' },
+                    rules: [],
+                    newRule: { interface: 'enp6s0f1', protocol: 'tcp', external_port: '', internal_ip: '', internal_port: '' },
+
+                    settings: { backup_path: '' },
+                    newContainer: { name: '', distro: 'debian', release: 'bookworm', arch: 'amd64' }
+                }
+            },
+            methods: {
+                async fetchData() {
+                    this.loading = true
+                    try {
+                        const resC = await fetch(`${API_BASE}/containers`)
+                        this.containers = await resC.json()
+
+                        const resR = await fetch(`${API_BASE}/network/rules`)
+                        this.rules = await resR.json()
+                    } catch (e) {
+                        this.showMsg("Connection failed.", "error")
+                    } finally {
+                        this.loading = false
+                    }
+                },
+
+                getPublicPorts(container) {
+                    if (!container.ipv4 || container.ipv4.length === 0) return [];
+                    const ip = container.ipv4[0];
+                    return this.rules.filter(r => r.internal_ip === ip);
+                },
+
+                async openSettings() {
+                    try {
+                        const resS = await fetch(`${API_BASE}/settings`)
+                        const dataS = await resS.json()
+                        this.settings.backup_path = dataS.backup_path
+
+                        const resD = await fetch(`${API_BASE}/network/dhcp`)
+                        this.dhcpLeases = await resD.json()
+
+                        const resR = await fetch(`${API_BASE}/network/rules`)
+                        this.rules = await resR.json()
+
+                        this.showSettingsModal = true
+                    } catch (e) {
+                        this.showMsg("Failed to load settings", "error")
+                    }
+                },
+
+                // --- Network Actions ---
+                async saveDhcp(name, ip) {
+                    try {
+                        await fetch(`${API_BASE}/network/dhcp`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name, ip })
+                        })
+                        this.showMsg(`DHCP updated for ${name}`, "success")
+                        this.newLease = { name: '', ip: '' }
+                    } catch (e) { this.showMsg("DHCP update failed", "error") }
+                },
+
+                async addRule() {
+                    if (!this.newRule.external_port || !this.newRule.internal_ip) return;
+                    try {
+                        await fetch(`${API_BASE}/network/rules`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.newRule)
+                        })
+                        const resR = await fetch(`${API_BASE}/network/rules`)
+                        this.rules = await resR.json()
+                        this.showMsg("Rule added (Pending Apply)", "info")
+                    } catch (e) { this.showMsg("Add Rule failed", "error") }
+                },
+
+                async deleteRule(port) {
+                    if (!confirm(`Remove forwarding for port ${port}?`)) return;
+                    try {
+                        await fetch(`${API_BASE}/network/rules/${port}`, { method: 'DELETE' })
+                        this.rules = this.rules.filter(r => r.external_port !== port)
+                    } catch (e) { this.showMsg("Delete Rule failed", "error") }
+                },
+
+                async applyNetwork() {
+                    this.showMsg("Applying network configuration...", "info")
+                    try {
+                        await fetch(`${API_BASE}/network/apply`, { method: 'POST' })
+                        this.showMsg("System Network Updated!", "success")
+                    } catch (e) { this.showMsg("Apply failed!", "error") }
+                },
+
+                // --- Container Actions ---
+                async saveSettings() {
+                    try {
+                        await fetch(`${API_BASE}/settings`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.settings)
+                        })
+                        this.showMsg("Settings saved!", "success")
+                    } catch (e) { this.showMsg("Failed to save settings", "error") }
+                },
+
+                // THIS WAS MISSING IN YOUR CODE:
+                async backupContainer(name) {
+                    this.showMsg(`Starting backup for ${name}...`, "info")
+                    try {
+                        const res = await fetch(`${API_BASE}/containers/${name}/backup`, { method: 'POST' })
+                        if (!res.ok) throw new Error()
+                        this.showMsg("Backup started in background", "success")
+                    } catch (e) {
+                        this.showMsg("Backup request failed", "error")
+                    }
+                },
+
+                // THIS WAS ALSO MISSING:
+                async deleteContainer(name) {
+                    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+                    this.showMsg(`Deleting ${name}...`, "error")
+                    try {
+                        const res = await fetch(`${API_BASE}/containers/${name}`, { method: 'DELETE' })
+                        if (!res.ok) throw new Error()
+                        this.fetchData()
+                        this.showMsg("Container deleted", "success")
+                    } catch (e) {
+                        this.showMsg("Deletion failed", "error")
+                    }
+                },
+
+                async controlContainer(name, action) {
+                    const idx = this.containers.findIndex(c => c.name === name)
+                    const originalState = this.containers[idx].state
+
+                    // Optimistic UI update
+                    this.containers[idx].state = action === 'start' ? 'RUNNING' : 'STOPPED'
+
+                    try {
+                        const res = await fetch(`${API_BASE}/containers/${name}/${action}`, { method: 'POST' })
+                        if (!res.ok) throw new Error()
+                        // Wait a moment for LXC to actually change state, then refresh
+                        setTimeout(() => this.fetchData(), 2000)
+                    } catch (e) {
+                        // Revert on failure
+                        this.containers[idx].state = originalState
+                        this.showMsg(`Failed to ${action}`, "error")
+                    }
+                },
+
+                showMsg(text, type) {
+                    this.message = text
+                    this.messageType = type
+                    setTimeout(() => this.message = '', 5000)
+                }
+            },
+            mounted() {
+                this.fetchData()
             }
-        },
-        methods: {
-            async fetchData() {
-                this.loading = true
-                try {
-                    // Fetch Containers
-                    const resC = await fetch(`${API_BASE}/containers`)
-                    this.containers = await resC.json()
-                    
-                    // Fetch Rules (to map public access)
-                    const resR = await fetch(`${API_BASE}/network/rules`)
-                    this.rules = await resR.json()
-
-                } catch (e) {
-                    this.showMsg("Connection failed.", "error")
-                } finally {
-                    this.loading = false
-                }
-            },
-            
-            // Helper to map rules to containers
-            getPublicPorts(container) {
-                // Find rules where internal_ip matches one of container's IPs
-                if(!container.ipv4 || container.ipv4.length === 0) return [];
-                const ip = container.ipv4[0]; // Assuming primary IP
-                return this.rules.filter(r => r.internal_ip === ip);
-            },
-
-            async openSettings() {
-                try {
-                    // Load General Settings
-                    const resS = await fetch(`${API_BASE}/settings`)
-                    const dataS = await resS.json()
-                    this.settings.backup_path = dataS.backup_path
-                    
-                    // Load Network Data
-                    const resD = await fetch(`${API_BASE}/network/dhcp`)
-                    this.dhcpLeases = await resD.json()
-                    
-                    const resR = await fetch(`${API_BASE}/network/rules`)
-                    this.rules = await resR.json()
-
-                    this.showSettingsModal = true
-                } catch (e) {
-                    this.showMsg("Failed to load settings", "error")
-                }
-            },
-            
-            // --- Network Methods ---
-            async saveDhcp(name, ip) {
-                try {
-                    await fetch(`${API_BASE}/network/dhcp`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({name, ip})
-                    })
-                    this.showMsg(`DHCP updated for ${name}`, "success")
-                    this.newLease = {name: '', ip: ''} // reset add form
-                } catch(e) { this.showMsg("DHCP update failed", "error") }
-            },
-
-            async addRule() {
-                if(!this.newRule.external_port || !this.newRule.internal_ip) return;
-                try {
-                    await fetch(`${API_BASE}/network/rules`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(this.newRule)
-                    })
-                    // Refresh local list
-                    const resR = await fetch(`${API_BASE}/network/rules`)
-                    this.rules = await resR.json()
-                    this.showMsg("Rule added (Pending Apply)", "info")
-                } catch(e) { this.showMsg("Add Rule failed", "error") }
-            },
-
-            async deleteRule(port) {
-                if(!confirm(`Remove forwarding for port ${port}?`)) return;
-                try {
-                    await fetch(`${API_BASE}/network/rules/${port}`, { method: 'DELETE' })
-                    this.rules = this.rules.filter(r => r.external_port !== port)
-                } catch(e) { this.showMsg("Delete Rule failed", "error") }
-            },
-
-            async applyNetwork() {
-                this.showMsg("Applying network configuration to system...", "info")
-                try {
-                    await fetch(`${API_BASE}/network/apply`, { method: 'POST' })
-                    this.showMsg("System Network Updated Successfully!", "success")
-                } catch(e) { this.showMsg("Apply failed!", "error") }
-            },
-            
-            // ... (Keep existing backup, delete, control methods) ...
-            // [Paste your previous saveSettings, backupContainer, deleteContainer, controlContainer methods here]
-            // For brevity, I assume you copy them from the previous version.
-            async saveSettings() {
-                try {
-                    await fetch(`${API_BASE}/settings`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(this.settings)
-                    })
-                    this.showMsg("Settings saved!", "success")
-                } catch (e) { this.showMsg("Failed to save settings", "error") }
-            },
-            async backupContainer(name) { /* ... Same as before ... */ },
-            async deleteContainer(name) { /* ... Same as before ... */ },
-            async controlContainer(name, action) { 
-                /* ... Same as before ... */ 
-                const idx = this.containers.findIndex(c => c.name === name)
-                const originalState = this.containers[idx].state
-                this.containers[idx].state = action === 'start' ? 'RUNNING' : 'STOPPED'
-                try {
-                    const res = await fetch(`${API_BASE}/containers/${name}/${action}`, { method: 'POST' })
-                    if (!res.ok) throw new Error()
-                    setTimeout(() => this.fetchData(), 1000)
-                } catch (e) {
-                    this.containers[idx].state = originalState
-                    this.showMsg(`Failed to ${action}`, "error")
-                }
-            },
-            async createContainer() { /* ... Same as before ... */ },
-            showMsg(text, type) {
-                this.message = text
-                this.messageType = type
-                setTimeout(() => this.message = '', 5000)
-            }
-        },
-        mounted() {
-            this.fetchData()
-        }
-    }).mount('#app')
-</script>
+        }).mount('#app')
+    </script>
 </body>
+
 </html>

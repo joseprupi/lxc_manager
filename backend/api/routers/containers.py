@@ -2,8 +2,50 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from backend.core.adapter import lxc
 from backend.schemas import ContainerInfo, CreateContainerRequest
 from typing import List
+import sqlite3
+import os
 
 router = APIRouter()
+
+# --- HELPER: Get Backup Path from DB ---
+def get_backup_path():
+    # Use relative path for local dev, absolute for prod
+    db_path = "lxc_manager.db" 
+    if os.path.exists("/opt/lxc_manager/lxc_manager.db"):
+        db_path = "/opt/lxc_manager/lxc_manager.db"
+        
+    default_path = "/tmp/lxc_backups"
+    final_path = default_path
+    source = "DEFAULT"
+
+    try:
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='setting'")
+            if cursor.fetchone():
+                try:
+                    cursor.execute("SELECT backup_path FROM setting LIMIT 1")
+                    row = cursor.fetchone()
+                    if row and row['backup_path'] and row['backup_path'].strip() != "":
+                        final_path = row['backup_path']
+                        source = "DATABASE"
+                except Exception:
+                    pass
+            conn.close()
+    except Exception as e:
+        print(f"⚠️ DB Read Error: {e}")
+
+    # Ensure backup directory exists
+    if not os.path.exists(final_path):
+        try:
+            os.makedirs(final_path, exist_ok=True)
+        except Exception as e:
+            print(f"❌ CRITICAL: Could not create backup dir: {e}")
+    
+    print(f"💾 Backup Config: {final_path} (Source: {source})")
+    return final_path
 
 @router.get("/", response_model=List[ContainerInfo])
 def get_containers():
@@ -11,58 +53,37 @@ def get_containers():
 
 @router.post("/{name}/start")
 def start_container(name: str):
-    try:
-        lxc.start_container(name)
-        return {"status": "started", "name": name}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    lxc.start_container(name)
+    return {"status": "started", "name": name}
 
 @router.post("/{name}/stop")
 def stop_container(name: str):
-    try:
-        lxc.stop_container(name)
-        return {"status": "stopped", "name": name}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    lxc.stop_container(name)
+    return {"status": "stopped", "name": name}
 
-# @router.delete("/{name}")
-# def delete_container(name: str):
-#     try:
-#         lxc.delete_container(name)
-#         return {"status": "deleted", "name": name}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+@router.delete("/{name}")
+def delete_container(name: str):
+    lxc.delete_container(name)
+    return {"status": "deleted", "name": name}
 
 @router.post("/")
-async def create_container(req: CreateContainerRequest, background_tasks: BackgroundTasks):
-    """
-    Starts container creation in the background so the UI doesn't freeze.
-    """
-    # Check if exists
+async def create_container(req: CreateContainerRequest, bg: BackgroundTasks):
     if lxc.get_container(req.name):
-        raise HTTPException(status_code=400, detail="Container already exists")
-    
-    # We run this in background because downloading templates takes time
-    background_tasks.add_task(lxc.create_container, req.name, req.distro, req.release, req.arch)
-    
-    return {"status": "creation_initiated", "message": f"Creating {req.name} ({req.distro}/{req.release}). This may take a while."}
+        raise HTTPException(status_code=400, detail="Exists")
+    bg.add_task(lxc.create_container, req.name, req.distro, req.release, req.arch)
+    return {"status": "creation_initiated"}
 
 @router.post("/{name}/backup")
-def backup_container_endpoint(name: str, background_tasks: BackgroundTasks):
-    # 1. Get path from DB
-    path = get_setting("backup_path", "/tmp/lxc_backups")
+def backup_container_endpoint(name: str, bg: BackgroundTasks):
+    path = get_backup_path()
     
-    # 2. Define the background task wrapper so we can log success/fail
-    def _run_backup_task():
+    def _run():
         try:
-            log_action("BACKUP_START", name, "PENDING", f"Target: {path}")
+            print(f"⏳ Backing up {name} to {path}...")
             filename = lxc.backup_container(name, path)
-            log_action("BACKUP_COMPLETE", name, "SUCCESS", f"File: {filename}")
+            print(f"✅ Backup DONE: {os.path.join(path, filename)}")
         except Exception as e:
-            log_action("BACKUP_ERROR", name, "ERROR", str(e))
-            print(f"Backup failed: {e}")
+            print(f"❌ Backup FAILED: {e}")
 
-    # 3. Queue it
-    background_tasks.add_task(_run_backup_task)
-    
-    return {"status": "started", "message": f"Backup started. Saving to {path}"}
+    bg.add_task(_run)
+    return {"status": "started"}

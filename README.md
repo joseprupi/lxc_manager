@@ -77,5 +77,5 @@ sudo ./run.sh
 
 This tool runs as **root** and exposes system-level controls.
 
-* **Do not expose this port to the public internet.**
-* Run only inside a trusted LAN or behind a VPN (Tailscale/Wireguard).
+* **Do not expose this to the public internet.**
+* Run only inside a trusted network

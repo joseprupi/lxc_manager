@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 from backend.core.network import net_manager
-from backend.database import PortMapping # <-- We use the DB model now
+from backend.database import PortMapping
 
 router = APIRouter()
 
-# --- DHCP Endpoints ---
 @router.get("/dhcp")
 def get_dhcp_leases():
+    # Helper to get current static IP assignments from the manager
     return net_manager.get_static_ips()
 
 @router.post("/dhcp")
