@@ -1,4 +1,14 @@
-fastapi
-uvicorn
-pydantic
-sqlmodel
+# LXC Simple Manager - Python Dependencies
+
+# Web Framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+
+# Data Validation
+pydantic>=2.0.0
+
+# Database ORM
+sqlmodel>=0.0.8
+
+# Note: python3-lxc must be installed via system package manager (apt)
+# as it requires native bindings to liblxc
