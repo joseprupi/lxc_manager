@@ -12,6 +12,15 @@
         .container-row { transition: background-color 0.15s ease; }
         .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
         .tab-inactive { color: #64748b; }
+        .log-viewer {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            background: #1e293b;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
@@ -70,12 +79,15 @@
                 <div v-for="c in containers" :key="c.name"
                     class="container-row grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-slate-50">
                     
-                    <!-- Name -->
+                    <!-- Name (clickable) -->
                     <div class="col-span-3 flex items-center gap-3">
                         <div class="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500">
                             <i class="fa-brands fa-linux"></i>
                         </div>
-                        <div class="font-bold text-slate-700 text-sm">{{ c.name }}</div>
+                        <button @click="openContainerDetails(c.name)" 
+                            class="font-bold text-slate-700 text-sm hover:text-blue-600 transition">
+                            {{ c.name }}
+                        </button>
                     </div>
 
                     <!-- Status -->
@@ -109,6 +121,10 @@
 
                     <!-- Actions -->
                     <div class="col-span-2 flex justify-end gap-1">
+                        <button @click="openContainerDetails(c.name)"
+                            class="p-2 text-slate-500 hover:bg-slate-100 rounded" title="Details & Logs">
+                            <i class="fa-solid fa-terminal"></i>
+                        </button>
                         <button v-if="c.state !== 'RUNNING'" @click="controlContainer(c.name, 'start')"
                             class="p-2 text-emerald-600 hover:bg-emerald-50 rounded" title="Start">
                             <i class="fa-solid fa-play"></i>
@@ -163,6 +179,115 @@
                         class="px-4 py-2 text-slate-600 hover:text-slate-900">Cancel</button>
                     <button @click="createContainer"
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Container Details Modal (Logs & Stats) -->
+        <div v-if="showDetailsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto">
+            <div class="bg-slate-100 rounded-xl shadow-xl w-full max-w-4xl m-4 my-8">
+                <div class="p-6 bg-white border-b rounded-t-xl flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold flex items-center gap-2">
+                            <i class="fa-brands fa-linux text-slate-500"></i>
+                            {{ detailsContainer.name }}
+                        </h2>
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                            :class="detailsContainer.state === 'RUNNING' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'">
+                            {{ detailsContainer.state }}
+                        </span>
+                    </div>
+                    <button @click="showDetailsModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="bg-white border-b flex gap-4 px-6">
+                    <button @click="detailsTab = 'stats'"
+                        :class="detailsTab === 'stats' ? 'tab-active' : 'tab-inactive'"
+                        class="py-3 text-sm">Resource Usage</button>
+                    <button @click="detailsTab = 'logs'"
+                        :class="detailsTab === 'logs' ? 'tab-active' : 'tab-inactive'"
+                        class="py-3 text-sm">Logs</button>
+                </div>
+
+                <div class="p-6">
+                    <!-- Stats Tab -->
+                    <div v-if="detailsTab === 'stats'">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- CPU -->
+                            <div class="bg-white p-4 rounded-lg border shadow-sm">
+                                <div class="flex items-center gap-2 text-slate-500 text-sm mb-2">
+                                    <i class="fa-solid fa-microchip"></i> CPU Usage
+                                </div>
+                                <div class="text-2xl font-bold text-slate-800">
+                                    {{ containerStats.cpu_usage !== null ? formatCpuTime(containerStats.cpu_usage) : '—' }}
+                                </div>
+                                <div class="text-xs text-slate-400">cumulative time</div>
+                            </div>
+
+                            <!-- Memory -->
+                            <div class="bg-white p-4 rounded-lg border shadow-sm">
+                                <div class="flex items-center gap-2 text-slate-500 text-sm mb-2">
+                                    <i class="fa-solid fa-memory"></i> Memory
+                                </div>
+                                <div class="text-2xl font-bold text-slate-800">
+                                    {{ containerStats.memory_usage !== null ? formatBytes(containerStats.memory_usage) : '—' }}
+                                </div>
+                                <div class="text-xs text-slate-400">
+                                    {{ containerStats.memory_limit ? 'of ' + formatBytes(containerStats.memory_limit) : 'no limit' }}
+                                </div>
+                            </div>
+
+                            <!-- Disk -->
+                            <div class="bg-white p-4 rounded-lg border shadow-sm">
+                                <div class="flex items-center gap-2 text-slate-500 text-sm mb-2">
+                                    <i class="fa-solid fa-hard-drive"></i> Disk Usage
+                                </div>
+                                <div class="text-2xl font-bold text-slate-800">
+                                    {{ containerStats.disk_usage !== null ? formatBytes(containerStats.disk_usage) : '—' }}
+                                </div>
+                                <div class="text-xs text-slate-400">rootfs size</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-right">
+                            <button @click="refreshStats" 
+                                class="text-sm text-blue-600 hover:text-blue-800">
+                                <i class="fa-solid fa-rotate mr-1"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Logs Tab -->
+                    <div v-if="detailsTab === 'logs'">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-slate-600">Lines:</label>
+                                <select v-model="logLines" @change="refreshLogs" 
+                                    class="border rounded px-2 py-1 text-sm">
+                                    <option :value="50">50</option>
+                                    <option :value="100">100</option>
+                                    <option :value="250">250</option>
+                                    <option :value="500">500</option>
+                                </select>
+                            </div>
+                            <button @click="refreshLogs" 
+                                class="text-sm text-blue-600 hover:text-blue-800">
+                                <i class="fa-solid fa-rotate mr-1"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="log-viewer rounded-lg p-4 h-96 overflow-auto">
+                            <template v-if="containerLogs">{{ containerLogs }}</template>
+                            <template v-else><span class="text-slate-500">Loading logs...</span></template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 border-t rounded-b-xl text-right">
+                    <button @click="showDetailsModal = false"
+                        class="text-slate-600 hover:text-slate-900 font-medium text-sm">Close</button>
                 </div>
             </div>
         </div>
@@ -321,15 +446,28 @@
                 return {
                     // UI State
                     activeTab: 'general',
+                    detailsTab: 'stats',
                     loading: false,
                     message: '',
                     messageType: 'info',
                     showCreateModal: false,
                     showSettingsModal: false,
+                    showDetailsModal: false,
                     
                     // Container Data
                     containers: [],
                     newContainer: { name: '', distro: 'debian', release: 'bookworm', arch: 'amd64' },
+                    
+                    // Container Details
+                    detailsContainer: { name: '', state: '' },
+                    containerStats: {
+                        cpu_usage: null,
+                        memory_usage: null,
+                        memory_limit: null,
+                        disk_usage: null
+                    },
+                    containerLogs: '',
+                    logLines: 100,
                     
                     // Network Data
                     dhcpLeases: {},
@@ -343,6 +481,30 @@
             },
 
             methods: {
+                // =========================================================
+                // Formatting Helpers
+                // =========================================================
+
+                formatBytes(bytes) {
+                    if (bytes === null || bytes === undefined) return '—';
+                    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+                    let i = 0;
+                    while (bytes >= 1024 && i < units.length - 1) {
+                        bytes /= 1024;
+                        i++;
+                    }
+                    return `${bytes.toFixed(1)} ${units[i]}`;
+                },
+
+                formatCpuTime(usec) {
+                    if (usec === null || usec === undefined) return '—';
+                    const sec = usec / 1000000;
+                    if (sec < 60) return `${sec.toFixed(1)}s`;
+                    const min = Math.floor(sec / 60);
+                    const remainingSec = (sec % 60).toFixed(0);
+                    return `${min}m ${remainingSec}s`;
+                },
+
                 // =========================================================
                 // Data Fetching
                 // =========================================================
@@ -378,6 +540,47 @@
                         this.showSettingsModal = true;
                     } catch (e) {
                         this.showMsg("Failed to load settings", "error");
+                    }
+                },
+
+                // =========================================================
+                // Container Details (Logs & Stats)
+                // =========================================================
+
+                async openContainerDetails(name) {
+                    const container = this.containers.find(c => c.name === name);
+                    if (!container) return;
+
+                    this.detailsContainer = { name: container.name, state: container.state };
+                    this.containerLogs = '';
+                    this.containerStats = { cpu_usage: null, memory_usage: null, memory_limit: null, disk_usage: null };
+                    this.detailsTab = 'stats';
+                    this.showDetailsModal = true;
+
+                    // Load stats and logs
+                    await Promise.all([this.refreshStats(), this.refreshLogs()]);
+                },
+
+                async refreshStats() {
+                    try {
+                        const res = await fetch(`${API_BASE}/containers/${this.detailsContainer.name}/stats`);
+                        if (res.ok) {
+                            this.containerStats = await res.json();
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch stats:', e);
+                    }
+                },
+
+                async refreshLogs() {
+                    try {
+                        const res = await fetch(`${API_BASE}/containers/${this.detailsContainer.name}/logs?lines=${this.logLines}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.containerLogs = data.content || 'No logs available';
+                        }
+                    } catch (e) {
+                        this.containerLogs = 'Failed to fetch logs';
                     }
                 },
 

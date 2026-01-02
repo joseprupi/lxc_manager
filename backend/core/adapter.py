@@ -312,5 +312,138 @@ class HybridLXCAdapter:
                 self.start_container(name)
 
 
+    def get_container_logs(self, name: str, lines: int = 100) -> str:
+        """
+        Get recent logs from a container.
+        
+        Reads from the container's console log file if available.
+        
+        Args:
+            name: Container name
+            lines: Number of lines to return (default 100)
+            
+        Returns:
+            Log content as string
+            
+        Raises:
+            ValueError: If container doesn't exist
+        """
+        container = self.get_container(name)
+        if not container:
+            raise ValueError(f"Container '{name}' does not exist")
+        
+        # Try to read console log file
+        console_log = f"/var/lib/lxc/{name}/console.log"
+        
+        if os.path.exists(console_log):
+            try:
+                result = subprocess.run(
+                    ["tail", "-n", str(lines), console_log],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    return result.stdout
+            except Exception:
+                pass
+        
+        # If no console log, try to get recent output via lxc-attach
+        # This only works for running containers
+        if container["state"] == "RUNNING":
+            try:
+                result = subprocess.run(
+                    ["lxc-attach", "-n", name, "--", "dmesg", "-T"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and result.stdout:
+                    # Return last N lines
+                    log_lines = result.stdout.strip().split('\n')
+                    return '\n'.join(log_lines[-lines:])
+            except subprocess.TimeoutExpired:
+                pass
+            except Exception:
+                pass
+        
+        return f"No logs available for container '{name}'"
+    
+    def get_container_stats(self, name: str) -> Dict:
+        """
+        Get resource usage statistics for a container.
+        
+        Args:
+            name: Container name
+            
+        Returns:
+            Dict with cpu, memory, and disk stats
+            
+        Raises:
+            ValueError: If container doesn't exist
+        """
+        container = self.get_container(name)
+        if not container:
+            raise ValueError(f"Container '{name}' does not exist")
+        
+        stats = {
+            "name": name,
+            "state": container["state"],
+            "cpu_usage": None,
+            "memory_usage": None,
+            "memory_limit": None,
+            "disk_usage": None,
+        }
+        
+        if container["state"] != "RUNNING":
+            return stats
+        
+        # Get cgroup path for the container
+        cgroup_base = f"/sys/fs/cgroup/lxc.payload.{name}"
+        
+        # Try cgroup v2 paths first, then v1
+        try:
+            # CPU usage (cgroup v2)
+            cpu_stat_file = f"{cgroup_base}/cpu.stat"
+            if os.path.exists(cpu_stat_file):
+                with open(cpu_stat_file, 'r') as f:
+                    for line in f:
+                        if line.startswith('usage_usec'):
+                            stats["cpu_usage"] = int(line.split()[1])
+                            break
+            
+            # Memory usage (cgroup v2)
+            mem_current_file = f"{cgroup_base}/memory.current"
+            mem_max_file = f"{cgroup_base}/memory.max"
+            
+            if os.path.exists(mem_current_file):
+                with open(mem_current_file, 'r') as f:
+                    stats["memory_usage"] = int(f.read().strip())
+            
+            if os.path.exists(mem_max_file):
+                with open(mem_max_file, 'r') as f:
+                    val = f.read().strip()
+                    if val != "max":
+                        stats["memory_limit"] = int(val)
+        except Exception as e:
+            print(f"DEBUG: Error reading cgroup stats: {e}")
+        
+        # Disk usage - check rootfs size
+        rootfs_path = f"/var/lib/lxc/{name}/rootfs"
+        if os.path.exists(rootfs_path):
+            try:
+                result = subprocess.run(
+                    ["du", "-sb", rootfs_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode == 0:
+                    stats["disk_usage"] = int(result.stdout.split()[0])
+            except Exception:
+                pass
+        
+        return stats
+
+
 # Global adapter instance - imported by other modules
 lxc = HybridLXCAdapter()
