@@ -1,31 +1,32 @@
-# Virtual Environment
+# Python
 venv/
 env/
-.env
-
-# Python compilation artifacts
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Distribution / Packaging
-build/
-dist/
 *.egg-info/
+dist/
+build/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # Logs
 *.log
-backend.log
-frontend.log
 
-# DB
-lxc_manager.db
-
-# IDE settings (VS Code, JetBrains)
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# OS generated files
+# OS
 .DS_Store
 Thumbs.db
+
+# Project specific
+full_project_context.txt
