@@ -31,7 +31,7 @@ sudo apt install python3-lxc lxc lxc-net bridge-utils
 ### Automatic Install (Recommended)
 
 ```bash
-git clone https://github.com/joseprupi/lxc-simple-manager
+git clone https://github.com/joseprupi/lxc_manager.git
 cd lxc-simple-manager
 sudo ./install.sh
 ```
